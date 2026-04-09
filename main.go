@@ -14,7 +14,12 @@ func setupRouter() *gin.Engine {
 	router.Use(errorHandler())
 
 	router.GET("/ping", func(c *gin.Context) {
-		c.Error(errors.New("[pong] something went wrong"))
+		router.GET("/ping", func(c *gin.Context) {
+			if err := c.Error(errors.New("[pong] something went wrong")); err != nil {
+				log.Println(err)
+			}
+			c.String(200, "pong")
+		})
 		c.String(200, "pong")
 	})
 
