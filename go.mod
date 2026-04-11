@@ -3,6 +3,8 @@ module go-project-278
 go 1.25.5
 
 require (
+	github.com/getsentry/sentry-go v0.45.0
+	github.com/getsentry/sentry-go/gin v0.45.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/stretchr/testify v1.11.1
 )

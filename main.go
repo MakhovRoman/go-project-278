@@ -1,9 +1,12 @@
 package main
 
 import (
-	"errors"
 	"log"
+	"os"
+	"time"
 
+	"github.com/getsentry/sentry-go"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
 )
 
@@ -11,34 +14,43 @@ func setupRouter() *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
-	router.Use(errorHandler())
-
-	router.GET("/ping", func(c *gin.Context) {
-		if err := c.Error(errors.New("[pong] something went wrong")); err != nil {
-			log.Println(err)
-		}
-		c.String(200, "pong")
-	})
 
 	return router
 }
 
-func errorHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Next()
-
-		if len(c.Errors) > 0 {
-			err := c.Errors.Last().Err
-
-			log.Println(err.Error())
+func initSentry(router *gin.Engine) {
+	dsn := os.Getenv("SENTRY_DSN")
+	if dsn == "" {
+		log.Println("Sentry disabled: SENTRY_DSN is not found")
+	} else {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:              dsn,
+			TracesSampleRate: 0.01,
+		}); err != nil {
+			log.Fatalf("failed to init Sentry: %v", err)
 		}
+		log.Println("✨ ~*~ wzhoooh ~*~ Sentry is ACTIVATED ~*~ ✨")
+		router.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
 	}
 }
 
 func main() {
-	router := setupRouter()
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	if err := router.Run(":8080"); err != nil {
+	router := setupRouter()
+	initSentry(router)
+	defer sentry.Flush(2 * time.Second)
+
+	router.GET("/ping", handlePing)
+	// добавляю endpoint только для локальной разработки
+	if gin.Mode() != gin.ReleaseMode {
+		router.GET("/panic", handlePanic)
+	}
+
+	if err := router.Run(":" + port); err != nil {
 		log.Fatal(err)
 	}
 }
