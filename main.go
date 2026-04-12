@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"go-project-278/internal/links"
 	"log"
 	"os"
 	"time"
@@ -8,6 +10,8 @@ import (
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 )
 
 func setupRouter() *gin.Engine {
@@ -35,20 +39,42 @@ func initSentry(router *gin.Engine) {
 }
 
 func main() {
+	_ = godotenv.Load()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL is missing")
+	}
+
+	conn, err := sql.Open("pgx", dbURL)
+	if err != nil {
+		log.Fatalf("failed connect to db: %v", err)
+	}
+	defer func(conn *sql.DB) {
+		err := conn.Close()
+		if err != nil {
+			log.Fatalf("failed to close db connection: %v", err)
+		}
+	}(conn)
+
 	router := setupRouter()
 	initSentry(router)
 	defer sentry.Flush(2 * time.Second)
 
-	router.GET("/ping", handlePing)
 	// добавляю endpoint только для локальной разработки
 	if gin.Mode() != gin.ReleaseMode {
 		router.GET("/panic", handlePanic)
 	}
+	// SERVICE
+	router.GET("/ping", handlePing)
+	// LINKS
+	svc := links.NewService(conn)
+	links.NewHandler(svc).Register(router)
 
 	if err := router.Run(":" + port); err != nil {
 		log.Fatal(err)

@@ -1,6 +1,6 @@
 .PHONY: run-debug run-prod lint test build full-flow
 run-debug:
-	export $(cat .env | xargs) && go run .
+	go run .
 
 run-prod:
 	GIN_MODE=release go run .
