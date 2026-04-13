@@ -18,11 +18,12 @@ var (
 )
 
 type LinkService interface {
-	GetListLinks(ctx context.Context) ([]db.Link, error)
+	GetListLinks(ctx context.Context, arg db.GetListLinksParams) ([]db.Link, error)
 	CreateLink(ctx context.Context, params db.NewLinkParams) (db.Link, error)
 	GetLinkByID(ctx context.Context, id int64) (db.Link, error)
 	UpdateLinkByID(ctx context.Context, params db.UpdateLinkByIDParams) (db.Link, error)
 	DeleteLink(ctx context.Context, id int64) error
+	CountLinks(ctx context.Context) (int64, error)
 }
 
 type dbService struct {
@@ -33,8 +34,8 @@ func NewService(conn *sql.DB) LinkService {
 	return &dbService{q: db.New(conn)}
 }
 
-func (s *dbService) GetListLinks(ctx context.Context) ([]db.Link, error) {
-	return s.q.GetListLinks(ctx)
+func (s *dbService) GetListLinks(ctx context.Context, arg db.GetListLinksParams) ([]db.Link, error) {
+	return s.q.GetListLinks(ctx, arg)
 }
 
 func (s *dbService) CreateLink(ctx context.Context, params db.NewLinkParams) (db.Link, error) {
@@ -95,4 +96,13 @@ func (s *dbService) DeleteLink(ctx context.Context, id int64) error {
 	}
 
 	return nil
+}
+
+func (s *dbService) CountLinks(ctx context.Context) (int64, error) {
+	count, err := s.q.CountLinks(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, err
 }

@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countLinks = `-- name: CountLinks :one
+SELECT COUNT(*) FROM links
+`
+
+func (q *Queries) CountLinks(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countLinks)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteLink = `-- name: DeleteLink :exec
 DELETE FROM links
 WHERE id=$1
@@ -41,11 +52,16 @@ func (q *Queries) GetLinkByID(ctx context.Context, id int64) (Link, error) {
 const getListLinks = `-- name: GetListLinks :many
 SELECT id, original_url, short_name, short_url, created_at
 FROM links
-ORDER BY id
+ORDER BY id LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetListLinks(ctx context.Context) ([]Link, error) {
-	rows, err := q.db.QueryContext(ctx, getListLinks)
+type GetListLinksParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) GetListLinks(ctx context.Context, arg GetListLinksParams) ([]Link, error) {
+	rows, err := q.db.QueryContext(ctx, getListLinks, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,11 @@
 -- name: GetListLinks :many
 SELECT id, original_url, short_name, short_url, created_at
 FROM links
-ORDER BY id;
+ORDER BY id LIMIT $1 OFFSET $2;
+
+-- name: CountLinks :one
+SELECT COUNT(*) FROM links;
+
 
 -- name: NewLink :one
 INSERT INTO links (original_url, short_name, short_url)

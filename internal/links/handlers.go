@@ -2,6 +2,7 @@ package links
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -27,11 +28,36 @@ func (h *Handler) Register(r *gin.Engine) {
 }
 
 func (h *Handler) handleGetListLinks(c *gin.Context) {
-	list, err := h.svc.GetListLinks(c.Request.Context())
+	rangeStr := c.Query("range")
+	if rangeStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "range query param is required"})
+		return
+	}
+
+	var offset, limit int64
+	if _, err := fmt.Sscanf(rangeStr, "[%d,%d]", &offset, &limit); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid range format, expected [offset,limit]"})
+		return
+	}
+
+	query := db.GetListLinksParams{
+		Offset: int32(offset),
+		Limit:  int32(limit),
+	}
+
+	list, err := h.svc.GetListLinks(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	total, err := h.svc.CountLinks(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Header("Content-Range", fmt.Sprintf("links %d-%d/%d", offset, limit, total))
 
 	c.JSON(http.StatusOK, list)
 }
