@@ -1,4 +1,4 @@
-.PHONY: run-debug run-prod lint test build full-flow
+.PHONY: run-debug run-prod lint test build full-flow client
 run-debug:
 	go run .
 
@@ -15,3 +15,6 @@ build:
 	go build
 
 full-flow: lint test build
+
+client:
+	npx start-hexlet-url-shortener-frontend
