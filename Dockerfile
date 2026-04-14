@@ -45,4 +45,5 @@ COPY Caddyfile /etc/caddy/Caddyfile
 
 EXPOSE 80
 
+ENV GIN_MODE=release
 CMD ["/app/bin/run.sh"]
