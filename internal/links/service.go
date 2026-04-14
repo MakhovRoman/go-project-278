@@ -100,7 +100,7 @@ func (s *dbService) UpdateLinkByID(ctx context.Context, params db.UpdateLinkByID
 }
 
 func (s *dbService) DeleteLink(ctx context.Context, id int64) error {
-	if err := s.q.DeleteLink(ctx, id); err != nil {
+	if _, err := s.q.DeleteLink(ctx, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrNotFound
 		}

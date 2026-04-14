@@ -20,14 +20,16 @@ func (q *Queries) CountLinks(ctx context.Context) (int64, error) {
 	return count, err
 }
 
-const deleteLink = `-- name: DeleteLink :exec
+const deleteLink = `-- name: DeleteLink :one
 DELETE FROM links
 WHERE id=$1
+RETURNING id
 `
 
-func (q *Queries) DeleteLink(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteLink, id)
-	return err
+func (q *Queries) DeleteLink(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, deleteLink, id)
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getLinkByID = `-- name: GetLinkByID :one
