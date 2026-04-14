@@ -10,4 +10,4 @@ echo "[run.sh] Starting Caddy"
 caddy run --config /etc/caddy/Caddyfile &
 
 echo "[run.sh] Starting Go app"
-exec /app/bin/app
+exec PORT=8080 /app/bin/app
