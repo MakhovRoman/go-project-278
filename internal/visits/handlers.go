@@ -11,15 +11,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Handler обрабатывает HTTP-запросы для редиректа и аналитики посещений.
 type Handler struct {
 	linkSvc  links.LinkService
 	visitSvc VisitService
 }
 
+// NewHandler создаёт Handler с сервисом ссылок и сервисом посещений.
 func NewHandler(linkSvc links.LinkService, visitSvc VisitService) *Handler {
 	return &Handler{linkSvc: linkSvc, visitSvc: visitSvc}
 }
 
+// Register регистрирует маршруты редиректа и списка посещений на переданном роутере.
 func (h *Handler) Register(r *gin.Engine) {
 	r.GET("/r/:code", h.handleRedirect)
 	r.GET("/api/link_visits", h.handleGetListVisits)

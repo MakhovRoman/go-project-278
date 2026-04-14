@@ -186,8 +186,26 @@ func TestCreateLink_Conflict(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusConflict, w.Code)
-	assert.Contains(t, w.Body.String(), "short_name already exists")
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), "short name already in use")
+}
+
+func TestGetListLinks_CountError(t *testing.T) {
+	svc := &stubService{
+		getListFn: func(ctx context.Context, arg db.GetListLinksParams) ([]db.Link, error) {
+			return []db.Link{}, nil
+		},
+		countFn: func(ctx context.Context) (int64, error) {
+			return 0, errors.New("count error")
+		},
+	}
+	r := newTestRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/links?range=[0,10]", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 func TestCreateLink_BadJSON(t *testing.T) {
@@ -201,6 +219,85 @@ func TestCreateLink_BadJSON(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), `"error":"invalid request"`)
+}
+
+func TestCreateLink_InvalidURL(t *testing.T) {
+	svc := &stubService{}
+	r := newTestRouter(svc)
+
+	body := bytes.NewBufferString(`{"original_url":"not-a-url","short_name":"exmpl"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/links", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), `"errors"`)
+	assert.Contains(t, w.Body.String(), `"original_url"`)
+}
+
+func TestCreateLink_ShortNameTooShort(t *testing.T) {
+	svc := &stubService{}
+	r := newTestRouter(svc)
+
+	body := bytes.NewBufferString(`{"original_url":"https://example.com","short_name":"ab"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/links", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), `"errors"`)
+}
+
+func TestUpdateLink_InvalidURL(t *testing.T) {
+	svc := &stubService{}
+	r := newTestRouter(svc)
+
+	body := bytes.NewBufferString(`{"original_url":"not-a-url","short_name":"exmpl"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/links/1", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), `"errors"`)
+}
+
+func TestUpdateLink_Conflict(t *testing.T) {
+	svc := &stubService{
+		updateByIDFn: func(ctx context.Context, params db.UpdateLinkByIDParams) (db.Link, error) {
+			return db.Link{}, ErrConflict
+		},
+	}
+	r := newTestRouter(svc)
+
+	body := bytes.NewBufferString(`{"original_url":"https://example.com","short_name":"exmpl"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/links/1", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), "short name already in use")
+}
+
+func TestCreateLink_DBError(t *testing.T) {
+	svc := &stubService{
+		createLinkFn: func(ctx context.Context, params db.NewLinkParams) (db.Link, error) {
+			return db.Link{}, errors.New("db error")
+		},
+	}
+	r := newTestRouter(svc)
+
+	body := bytes.NewBufferString(`{"original_url":"https://example.com","short_name":"exmpl"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/links", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 func TestGetLinkByID(t *testing.T) {
@@ -267,6 +364,21 @@ func TestUpdateLinkByID(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"short_name":"newname"`)
 }
 
+func TestGetLinkByID_DBError(t *testing.T) {
+	svc := &stubService{
+		getByIDFn: func(ctx context.Context, id int64) (db.Link, error) {
+			return db.Link{}, errors.New("db error")
+		},
+	}
+	r := newTestRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/links/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
 func TestUpdateLinkByID_NotFound(t *testing.T) {
 	svc := &stubService{
 		updateByIDFn: func(ctx context.Context, params db.UpdateLinkByIDParams) (db.Link, error) {
@@ -290,6 +402,36 @@ func TestUpdateLinkByID_InvalidID(t *testing.T) {
 
 	body := bytes.NewBufferString(`{"original_url":"https://example.com","short_name":"exmpl"}`)
 	req := httptest.NewRequest(http.MethodPut, "/api/links/abc", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateLinkByID_DBError(t *testing.T) {
+	svc := &stubService{
+		updateByIDFn: func(ctx context.Context, params db.UpdateLinkByIDParams) (db.Link, error) {
+			return db.Link{}, errors.New("db error")
+		},
+	}
+	r := newTestRouter(svc)
+
+	body := bytes.NewBufferString(`{"original_url":"https://example.com","short_name":"exmpl"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/links/1", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestUpdateLinkByID_BadJSON(t *testing.T) {
+	svc := &stubService{}
+	r := newTestRouter(svc)
+
+	body := bytes.NewBufferString(`{bad json`)
+	req := httptest.NewRequest(http.MethodPut, "/api/links/1", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -337,4 +479,19 @@ func TestDeleteLink_InvalidID(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestDeleteLink_DBError(t *testing.T) {
+	svc := &stubService{
+		deleteFn: func(ctx context.Context, id int64) error {
+			return errors.New("db error")
+		},
+	}
+	r := newTestRouter(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/links/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }

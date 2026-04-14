@@ -12,18 +12,29 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-var (
-	ErrNotFound = errors.New("not found")
-	ErrConflict = errors.New("conflict")
-)
+// ErrNotFound возвращается когда запрошенная ссылка не найдена в базе данных.
+var ErrNotFound = errors.New("not found")
 
+// ErrConflict возвращается при попытке создать ссылку с уже существующим short_name.
+var ErrConflict = errors.New("conflict")
+
+// LinkService описывает операции над сокращёнными ссылками.
 type LinkService interface {
+	// GetListLinks возвращает страницу ссылок с учётом LIMIT/OFFSET.
 	GetListLinks(ctx context.Context, arg db.GetListLinksParams) ([]db.Link, error)
+	// CreateLink создаёт новую ссылку. Если ShortName пустой — генерирует автоматически.
+	// Возвращает ErrConflict если short_name уже занят.
 	CreateLink(ctx context.Context, params db.NewLinkParams) (db.Link, error)
+	// GetLinkByID возвращает ссылку по ID. Возвращает ErrNotFound если не существует.
 	GetLinkByID(ctx context.Context, id int64) (db.Link, error)
+	// UpdateLinkByID обновляет original_url и short_name ссылки.
+	// Возвращает ErrNotFound или ErrConflict при соответствующих ошибках.
 	UpdateLinkByID(ctx context.Context, params db.UpdateLinkByIDParams) (db.Link, error)
+	// DeleteLink удаляет ссылку по ID. Возвращает ErrNotFound если не существует.
 	DeleteLink(ctx context.Context, id int64) error
+	// CountLinks возвращает общее количество ссылок в базе данных.
 	CountLinks(ctx context.Context) (int64, error)
+	// GetLinkByShortName находит ссылку по short_name. Возвращает ErrNotFound если не существует.
 	GetLinkByShortName(ctx context.Context, shortName string) (db.Link, error)
 }
 
@@ -31,6 +42,7 @@ type dbService struct {
 	q *db.Queries
 }
 
+// NewService создаёт реализацию LinkService поверх переданного соединения с БД.
 func NewService(conn *sql.DB) LinkService {
 	return &dbService{q: db.New(conn)}
 }

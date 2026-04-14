@@ -217,6 +217,24 @@ func TestGetListVisits_InvalidRange(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
+func TestGetListVisits_CountError(t *testing.T) {
+	visitSvc := &stubVisitService{
+		getListFn: func(ctx context.Context, params db.GetListVisitsParams) ([]db.LinkVisit, error) {
+			return []db.LinkVisit{}, nil
+		},
+		countFn: func(ctx context.Context) (int64, error) {
+			return 0, errors.New("count error")
+		},
+	}
+	r := newTestRouter(&stubLinkService{}, visitSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/link_visits?range=[0,10]", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
 func TestGetListVisits_DBError(t *testing.T) {
 	visitSvc := &stubVisitService{
 		getListFn: func(ctx context.Context, params db.GetListVisitsParams) ([]db.LinkVisit, error) {
