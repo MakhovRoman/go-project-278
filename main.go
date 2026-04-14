@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"go-project-278/internal/links"
+	"go-project-278/internal/visits"
 	"log"
 	"os"
 	"time"
@@ -17,6 +18,7 @@ import (
 
 func setupRouter() *gin.Engine {
 	router := gin.New()
+	router.TrustedPlatform = gin.PlatformCloudflare
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(cors.New(cors.Config{
@@ -80,8 +82,12 @@ func main() {
 	// SERVICE
 	router.GET("/ping", handlePing)
 	// LINKS
-	svc := links.NewService(conn)
-	links.NewHandler(svc).Register(router)
+	linkSvc := links.NewService(conn)
+	links.NewHandler(linkSvc).Register(router)
+
+	// VISITS
+	visitSvc := visits.NewService(conn)
+	visits.NewHandler(linkSvc, visitSvc).Register(router)
 
 	if err := router.Run(":" + port); err != nil {
 		log.Fatal(err)

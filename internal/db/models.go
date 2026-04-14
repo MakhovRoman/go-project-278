@@ -15,3 +15,13 @@ type Link struct {
 	ShortUrl    string    `json:"short_url"`
 	CreatedAt   time.Time `json:"created_at"`
 }
+
+type LinkVisit struct {
+	ID        int64     `json:"id"`
+	LinkID    int32     `json:"link_id"`
+	CreatedAt time.Time `json:"created_at"`
+	Ip        string    `json:"ip"`
+	UserAgent string    `json:"user_agent"`
+	Referer   string    `json:"referer"`
+	Status    int32     `json:"status"`
+}

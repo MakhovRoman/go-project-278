@@ -15,12 +15,13 @@ import (
 )
 
 type stubService struct {
-	getListFn    func(ctx context.Context, arg db.GetListLinksParams) ([]db.Link, error)
-	countFn      func(ctx context.Context) (int64, error)
-	createLinkFn func(ctx context.Context, params db.NewLinkParams) (db.Link, error)
-	getByIDFn    func(ctx context.Context, id int64) (db.Link, error)
-	updateByIDFn func(ctx context.Context, params db.UpdateLinkByIDParams) (db.Link, error)
-	deleteFn     func(ctx context.Context, id int64) error
+	getListFn        func(ctx context.Context, arg db.GetListLinksParams) ([]db.Link, error)
+	countFn          func(ctx context.Context) (int64, error)
+	createLinkFn     func(ctx context.Context, params db.NewLinkParams) (db.Link, error)
+	getByIDFn        func(ctx context.Context, id int64) (db.Link, error)
+	updateByIDFn     func(ctx context.Context, params db.UpdateLinkByIDParams) (db.Link, error)
+	deleteFn         func(ctx context.Context, id int64) error
+	getByShortNameFn func(ctx context.Context, shortName string) (db.Link, error)
 }
 
 func (s *stubService) GetListLinks(ctx context.Context, arg db.GetListLinksParams) ([]db.Link, error) {
@@ -70,6 +71,13 @@ func newTestRouter(svc LinkService) *gin.Engine {
 	r := gin.New()
 	NewHandler(svc).Register(r)
 	return r
+}
+
+func (s *stubService) GetLinkByShortName(ctx context.Context, shortName string) (db.Link, error) {
+	if s.getByShortNameFn == nil {
+		return db.Link{}, nil
+	}
+	return s.getByShortNameFn(ctx, shortName)
 }
 
 func TestGetListLinks(t *testing.T) {

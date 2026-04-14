@@ -24,6 +24,7 @@ type LinkService interface {
 	UpdateLinkByID(ctx context.Context, params db.UpdateLinkByIDParams) (db.Link, error)
 	DeleteLink(ctx context.Context, id int64) error
 	CountLinks(ctx context.Context) (int64, error)
+	GetLinkByShortName(ctx context.Context, shortName string) (db.Link, error)
 }
 
 type dbService struct {
@@ -105,4 +106,16 @@ func (s *dbService) CountLinks(ctx context.Context) (int64, error) {
 	}
 
 	return count, err
+}
+
+func (s *dbService) GetLinkByShortName(ctx context.Context, shortName string) (db.Link, error) {
+	link, err := s.q.GetLinkByShortName(ctx, shortName)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return db.Link{}, ErrNotFound
+		}
+		return db.Link{}, err
+	}
+
+	return link, nil
 }
